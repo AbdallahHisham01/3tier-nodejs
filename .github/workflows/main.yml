@@ -2,8 +2,9 @@ name: Build CI
 
 on:
   push:
-    branches:
-      - main
+    paths:
+     - frontend/**
+     - backend/**
 jobs: 
   build:
     runs-on: ubuntu-latest
