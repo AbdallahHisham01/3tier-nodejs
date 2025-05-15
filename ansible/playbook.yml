@@ -1,0 +1,38 @@
+- name: setup k3s on master node
+  hosts: instance1
+  become: yes
+  tasks:
+    - name: install k3s
+      ansible.builtin.uri:
+        url: https://get.k3s.io
+        return_content: yes
+      register: k3s_script
+    - name: save script
+      ansible.builtin.copy:
+        content: "{{ k3s_script.content }}"
+        dest: k3s_install.sh
+        mode: "0755"
+    - name: change k3s.yaml permissions
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/k3s.yaml
+        mode: "755"
+    - name: run k3s script
+      ansible.builtin.shell: ./k3s_install.sh
+    - name: get token (slurp reads file as base64)
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: token_b64
+    - name: decode token and set as fact
+      set_fact:
+        k3s_token: "{{ token_b64.content | b64decode }}"
+
+# - name: join the worker node
+#   hosts: instance2
+#   become: yes
+#   tasks:
+#     - name: debug
+#       debug:
+#         msg: "{{ hostvars['instance1'].ansible_host }}, {{ hostvars['instance1'].k3s_token }}"
+#     - name: install k3s agent and join cluster
+#       ansible.builtin.shell: |
+#         curl -sfL https://get.k3s.io | K3S_URL=https://{{ hostvars['instance1'].ansible_host }}:6443 K3S_TOKEN={{ hostvars['instance1'].k3s_token }} sh -
