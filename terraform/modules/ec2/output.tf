@@ -4,3 +4,7 @@ output "ec2-id" {
 output "secondary-id" {
   value = aws_instance.secondary.id
 }
+
+output "jenkins-id" {
+  value = aws
+}

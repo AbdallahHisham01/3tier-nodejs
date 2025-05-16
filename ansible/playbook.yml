@@ -12,27 +12,53 @@
         content: "{{ k3s_script.content }}"
         dest: k3s_install.sh
         mode: "0755"
+    - name: run k3s script
+      ansible.builtin.shell: ./k3s_install.sh
     - name: change k3s.yaml permissions
       ansible.builtin.file:
         path: /etc/rancher/k3s/k3s.yaml
         mode: "755"
-    - name: run k3s script
-      ansible.builtin.shell: ./k3s_install.sh
-    - name: get token (slurp reads file as base64)
-      ansible.builtin.slurp:
-        src: /var/lib/rancher/k3s/server/node-token
-      register: token_b64
-    - name: decode token and set as fact
-      set_fact:
-        k3s_token: "{{ token_b64.content | b64decode }}"
-
-# - name: join the worker node
-#   hosts: instance2
-#   become: yes
-#   tasks:
-#     - name: debug
-#       debug:
-#         msg: "{{ hostvars['instance1'].ansible_host }}, {{ hostvars['instance1'].k3s_token }}"
-#     - name: install k3s agent and join cluster
-#       ansible.builtin.shell: |
-#         curl -sfL https://get.k3s.io | K3S_URL=https://{{ hostvars['instance1'].ansible_host }}:6443 K3S_TOKEN={{ hostvars['instance1'].k3s_token }} sh -
+    - name: get master ip
+      ansible.builtin.setup:
+        filter: ansible_default_ipv4
+      register: master_ip
+    - name: test
+      debug:
+        var: master_ip.ansible_facts.ansible_default_ipv4.address
+    - name: set master ip in kubeconfig file
+      ansible.builtin.lineinfile:
+          path: /etc/rancher/k3s/k3s.yaml
+          regexp: '^\s*server: https://127.0.0.1:6443'
+          line: '  server: https://{{ master_ip.ansible_facts.ansible_default_ipv4.address }}:6443'
+    - name: copy kubeconfig to ansible server
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: .
+    
+- name: setup jenkins and kubectl
+  hosts: jenkins
+  become: true
+  tasks:
+    - name: copy jenkins installation script
+      ansible.builtin.copy:
+        src: ./install_jenkins.sh
+        dest: .
+        mode: "755"
+    - name: run jenkins installation script
+      ansible.builtin.shell: ./install_jenkins.sh
+    - name: copy kubeconfig file
+      ansible.builtin.copy:
+        src: /home/abdallah/devops-project/Auto-Deploy-MERN-Stack-on-K8S/ansible/instance1/etc
+        dest: /var/jenkins_home/.kube/config
+    - name: set kubeconfig value
+      ansible.builtin.shell: "export KUBECONFIG=/var/jenkins_home/.kube/config/etc/rancher/k3s/k3s.yaml" 
+    - name: install kubectl
+      ansible.builtin.uri:
+        url: https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl
+        return_content: yes
+      register: kubectl
+    - name: save kubectl to /usr/local/bin
+      ansible.builtin.copy:
+        content: "{{ kubectl.content }}"
+        dest: /usr/local/bin/kubectl
+        mode: '0755'   

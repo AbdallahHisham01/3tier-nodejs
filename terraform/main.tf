@@ -33,6 +33,7 @@ module "elb" {
   secondary-subnet-id = module.subnet.secondary-subnet-id
   main-subnet-id = module.subnet.main-subnet-id
   ec2-id = module.ec2.ec2-id
+  jenkins-id = module.ec2.jenkins-id
   secondary-id = module.ec2.secondary-id
   vpc_id = module.vpc.vpc_id
 }

@@ -31,3 +31,14 @@ resource "aws_instance" "bastion" {
     Name = "bastion"
   }
 }
+
+resource "aws_instance" "jenkins" {
+  ami = var.ami
+  instance_type = var.instance_type
+  key_name = var.key
+  subnet_id = var.main-priv-subnet-id
+  vpc_security_group_ids = [ var.sg-ec2 ]
+  tags = {
+    Name = "Jenkins" 
+  }
+}
